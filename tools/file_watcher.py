@@ -1,3 +1,4 @@
+# tools/file_watcher.py
 import os
 import json
 import time
@@ -5,9 +6,6 @@ import logging
 from datetime import datetime
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-import litellm  # Changed from langchain_community.llms import Ollama
-
-# Add this class to file_watcher.py before the other functions
 
 class CaptureHandler(FileSystemEventHandler):
     def __init__(self, callback):
@@ -24,19 +22,8 @@ class CaptureHandler(FileSystemEventHandler):
         if content:
             self.callback(content)
 
-
-
 def process_existing_files(folder_path, callback):
-    """
-    Process existing files in the folder.
-    
-    Args:
-        folder_path (str): Path to the folder to process
-        callback (function): Function to call for each file
-        
-    Returns:
-        int: Number of files processed
-    """
+    """Process existing files in the folder."""
     if not os.path.exists(folder_path):
         return 0
         
@@ -59,16 +46,8 @@ def process_existing_files(folder_path, callback):
             
     return count
 
-
-
 def watch_folder(folder_path, callback):
-    """
-    Watch a folder for new files and call the callback function when a new file is detected.
-    
-    Args:
-        folder_path (str): Path to the folder to watch
-        callback (function): Function to call when a new file is detected
-    """
+    """Watch a folder for new files and call the callback function when a new file is detected."""
     event_handler = CaptureHandler(callback)
     observer = Observer()
     observer.schedule(event_handler, folder_path, recursive=False)
@@ -77,18 +56,8 @@ def watch_folder(folder_path, callback):
     print(f"Watching folder: {folder_path}")
     return observer
 
-
-
 def read_file(file_path):
-    """
-    Read a file and create a dictionary object from its contents.
-    
-    Args:
-        file_path (str): Path to the file to read
-        
-    Returns:
-        dict: Dictionary containing the file content and metadata
-    """
+    """Read a file and create a dictionary object from its contents."""
     if not os.path.exists(file_path):
         print(f"File not found: {file_path}")
         return None
@@ -114,6 +83,3 @@ def read_file(file_path):
     
     print(f"Read file: {file_name}")
     return thought_object
-
-
-

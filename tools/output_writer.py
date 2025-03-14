@@ -5,7 +5,6 @@ import logging
 from datetime import datetime
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-import litellm  # Changed from langchain_community.llms import Ollama
 
 def write_result(thought_object, output_folder):
     """

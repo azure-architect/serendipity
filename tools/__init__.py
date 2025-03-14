@@ -1,3 +1,4 @@
+# tools/__init__.py
 import os
 import json
 import time
@@ -5,7 +6,6 @@ import logging
 from datetime import datetime
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-import litellm  # Changed from langchain_community.llms import Ollama
 
 # Re-export all tools
 from .file_watcher import CaptureHandler, process_existing_files, watch_folder, read_file

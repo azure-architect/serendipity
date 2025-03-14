@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-import litellm  # Changed from langchain_community.llms import Ollama
+ # Changed from langchain_community.llms import Ollama
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

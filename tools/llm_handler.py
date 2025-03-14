@@ -1,3 +1,4 @@
+# tools/llm_handler.py
 import os
 import json
 import yaml
@@ -14,14 +15,7 @@ llm_adapter = None
 LLM_CONFIGS = {}
 
 def initialize_llm_configs(config_path, adapter_type="ollama"):
-    """
-    Initialize the global LLM configurations and adapter.
-    This should be called at system startup.
-    
-    Args:
-        config_path (str): Path to the YAML config file
-        adapter_type (str): Type of adapter to use ("litellm" or "ollama")
-    """
+    """Initialize the global LLM configurations and adapter."""
     global LLM_CONFIGS, llm_adapter
     
     logger.info(f"Initializing LLM configs from: {config_path}")
@@ -57,7 +51,7 @@ def initialize_llm_configs(config_path, adapter_type="ollama"):
         # Set up a fallback configuration
         LLM_CONFIGS = {'default': {
             'adapter': 'ollama',
-            'model': 'mistral-nemo:latest',
+            'model': 'llama3',
             'temperature': 0.7
         }}
         
@@ -69,16 +63,7 @@ def initialize_llm_configs(config_path, adapter_type="ollama"):
 
 
 def communicate_with_llm(prompt, config_name='default'):
-    """
-    Communicate with the LLM and get a response using the specified configuration.
-    
-    Args:
-        prompt (str): The prompt to send to the LLM.
-        config_name (str): Name of the LLM configuration to use
-        
-    Returns:
-        str: The response from the LLM.
-    """
+    """Communicate with the LLM and get a response using the specified configuration."""
     global llm_adapter, LLM_CONFIGS
     
     print("========= COMMUNICATE WITH LLM FUNCTION CALLED =========")

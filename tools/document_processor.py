@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-import litellm
+
 
 def process_with_agent(thought_object, agent, agent_name, agent_id, prompt_templates):
     """Process a thought object with an agent."""
