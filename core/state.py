@@ -1,222 +1,200 @@
-# core/pipeline.py
+# core/state.py
 import logging
-from typing import Dict, Any, Optional, List, Callable
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Dict, Optional, List, Any
+import uuid
+import asyncio
+from enum import Enum
 
-from .schema import ProcessingStage, DocumentState
-from .state import StateManager, LockError
+# Remove this circular import
+# from .state import StateManager, LockError
+
+from .schema import (
+    DocumentState, ProcessingStage, StateTransition, 
+    StateLock, ProcessedDocument
+)
 
 logger = logging.getLogger(__name__)
 
-class Pipeline:
-    """Orchestrates the document processing pipeline."""
+
+class LockError(Exception):
+    """Exception raised for errors in document locking."""
+    pass
+
+
+class StateManager:
+    """
+    Manages document state transitions and locking.
+    """
     
-    def __init__(self, task_factory, state_manager=None, storage=None):
-        """Initialize the pipeline.
-        
-        Args:
-            task_factory: Factory for creating task processors
-            state_manager: Optional state manager for tracking document states
-            storage: Optional storage backend for persisting documents
-        """
-        self.task_factory = task_factory
-        self.state_manager = state_manager or StateManager(storage)
-        self.storage = storage
-        self.hooks = {}  # Hooks for pipeline events
-        
-        # Define the standard processing sequence
-        self.stage_sequence = [
-            ProcessingStage.CREATED,
-            ProcessingStage.CAPTURED,
-            ProcessingStage.CONTEXTUALIZED,
-            ProcessingStage.CLARIFIED,
-            ProcessingStage.CATEGORIZED,
-            ProcessingStage.CRYSTALLIZED,
-            ProcessingStage.CONNECTED
-        ]
-        
-        # Map stages to task names
-        self.stage_to_task = {
-            ProcessingStage.CAPTURED: "capture",
-            ProcessingStage.CONTEXTUALIZED: "contextualize",
-            ProcessingStage.CLARIFIED: "clarify", 
-            ProcessingStage.CATEGORIZED: "categorize",
-            ProcessingStage.CRYSTALLIZED: "crystallize",
-            ProcessingStage.CONNECTED: "connect"
-        }
+    def __init__(self, storage_interface=None):
+        self.storage = storage_interface
+        self.locks = {}  # In-memory tracking of locks
+        self.lock_timeout = timedelta(minutes=10)  # Default lock timeout
     
-    def process(self, document, start_stage=None, end_stage=None, agent_id="pipeline"):
-        """Process a document through the pipeline.
-        
-        Args:
-            document: The document to process
-            start_stage: Optional stage to start processing from
-            end_stage: Optional stage to stop processing at
-            agent_id: ID of the agent initiating the processing
-            
-        Returns:
-            The processed document
+    async def get_document_state(self, document_id: str) -> Optional[DocumentState]:
         """
-        # Get current document state or create new one
-        doc_state = self._get_or_create_state(document)
-        
-        # Determine start and end stages
-        current_stage = doc_state.current_stage
-        start_idx = self.stage_sequence.index(current_stage) if start_stage is None else self.stage_sequence.index(start_stage)
-        
-        if end_stage:
-            end_idx = self.stage_sequence.index(end_stage)
-        else:
-            end_idx = len(self.stage_sequence) - 1
-        
-        # Process document through each stage
-        for stage_idx in range(start_idx, end_idx + 1):
-            # Get current and next stage
-            if stage_idx == 0:
-                # Skip processing for CREATED stage since there's no task
-                continue
-                
-            current_stage = self.stage_sequence[stage_idx - 1]
-            next_stage = self.stage_sequence[stage_idx]
-            
-            # Skip if document is already in or past this stage
-            if self.stage_sequence.index(doc_state.current_stage) >= stage_idx:
-                continue
-            
-            # Get the task for this stage transition
-            task_name = self.stage_to_task.get(next_stage)
-            if not task_name:
-                logger.warning(f"No task defined for stage {next_stage}, skipping")
-                continue
-                
-            task = self.task_factory.get_task(task_name)
-            if not task:
-                logger.warning(f"Task '{task_name}' not found, skipping stage {next_stage}")
-                continue
-            
-            # Lock document for processing
-            try:
-                self.state_manager.lock_document(document.id, agent_id)
-            except LockError as e:
-                logger.error(f"Could not lock document for processing: {e}")
-                return document
-            
-            try:
-                # Process document with the task
-                logger.info(f"Processing document {document.id} with task '{task_name}'")
-                document = task.process(document)
-                
-                # Transition document state
-                doc_state = self.state_manager.transition_state(
-                    document_id=document.id,
-                    from_stage=current_stage,
-                    to_stage=next_stage,
-                    agent_id=agent_id,
-                    message=f"Processed with {task_name} task"
-                )
-                
-                # Update document with new state
-                document.state = doc_state
-                
-                # Persist document if storage is available
-                if self.storage:
-                    self.storage.save_document(document)
-                
-                # Trigger any hooks for this stage
-                self._trigger_hooks(next_stage, document)
-                
-            except Exception as e:
-                logger.error(f"Error processing document {document.id} with task '{task_name}': {e}")
-                
-                # Transition to error state
-                try:
-                    doc_state = self.state_manager.transition_state(
-                        document_id=document.id,
-                        from_stage=current_stage,
-                        to_stage=ProcessingStage.ERROR,
-                        agent_id=agent_id,
-                        message=f"Error in {task_name} task: {str(e)}"
-                    )
-                    document.state = doc_state
-                    
-                    # Store error info
-                    document.state.error_info = {
-                        "stage": next_stage,
-                        "task": task_name,
-                        "error": str(e),
-                        "timestamp": datetime.utcnow().isoformat()
-                    }
-                    
-                    # Persist document if storage is available
-                    if self.storage:
-                        self.storage.save_document(document)
-                    
-                    # Trigger error hooks
-                    self._trigger_hooks("error", document)
-                    
-                except Exception as state_error:
-                    logger.error(f"Error transitioning document to error state: {state_error}")
-                
-                return document
-            finally:
-                # Release lock
-                try:
-                    self.state_manager.release_lock(document.id, agent_id)
-                except Exception as unlock_error:
-                    logger.error(f"Error releasing document lock: {unlock_error}")
-        
-        return document
-    
-    def register_hook(self, stage: str, hook: Callable):
-        """Register a hook to be called when a document reaches a stage.
-        
-        Args:
-            stage: The stage to hook into
-            hook: Callable to invoke with the document as argument
+        Get the current state of a document.
         """
-        if stage not in self.hooks:
-            self.hooks[stage] = []
-        self.hooks[stage].append(hook)
-    
-    def _trigger_hooks(self, stage: str, document):
-        """Trigger any hooks registered for a stage.
+        if self.storage:
+            return await self.storage.get_document_state(document_id)
+        return None
         
-        Args:
-            stage: The stage that was reached
-            document: The document to pass to hooks
+    async def transition_state(self, 
+                              document_id: str, 
+                              to_stage: ProcessingStage, 
+                              agent_id: str, 
+                              message: Optional[str] = None) -> DocumentState:
         """
-        hooks = self.hooks.get(stage, [])
-        for hook in hooks:
-            try:
-                hook(document)
-            except Exception as e:
-                logger.error(f"Error in hook for stage {stage}: {e}")
-    
-    def _get_or_create_state(self, document):
-        """Get or create a state for the document.
-        
-        Args:
-            document: The document to get state for
-            
-        Returns:
-            The document state
+        Transition a document to a new processing stage.
         """
-        # If document already has a state, use it
-        if hasattr(document, 'state') and document.state:
-            return document.state
-        
-        # Try to get state from state manager
-        doc_state = self.state_manager.get_document_state(document.id)
-        
-        # Create new state if none exists
+        # Get current state
+        doc_state = await self.get_document_state(document_id)
         if not doc_state:
-            doc_state = DocumentState(
-                document_id=document.id,
-                current_stage=ProcessingStage.CREATED,
-                transition_history=[]
-            )
+            raise ValueError(f"Document {document_id} not found")
+            
+        # Check if document is locked
+        if doc_state.lock and doc_state.lock.locked_by != agent_id:
+            raise LockError(f"Document {document_id} is locked by {doc_state.lock.locked_by}")
+            
+        # Create transition record
+        transition = StateTransition(
+            from_stage=doc_state.current_stage,
+            to_stage=to_stage,
+            agent_id=agent_id,
+            timestamp=datetime.utcnow(),
+            message=message
+        )
         
-        # Update document with state
-        document.state = doc_state
+        # Update state
+        doc_state.previous_stage = doc_state.current_stage
+        doc_state.current_stage = to_stage
+        doc_state.transition_history.append(transition)
+        doc_state.last_updated = datetime.utcnow()
         
+        # Save updated state
+        if self.storage:
+            await self.storage.save_document_state(doc_state)
+            
         return doc_state
+        
+    async def lock_document(self, 
+                           document_id: str, 
+                           agent_id: str, 
+                           timeout_minutes: int = None) -> StateLock:
+        """
+        Lock a document for exclusive access.
+        """
+        # Get current state
+        doc_state = await self.get_document_state(document_id)
+        if not doc_state:
+            raise ValueError(f"Document {document_id} not found")
+            
+        # Check if already locked
+        if doc_state.lock:
+            # Check if lock expired
+            if doc_state.lock.expires_at > datetime.utcnow():
+                raise LockError(f"Document {document_id} is already locked by {doc_state.lock.locked_by}")
+                
+        # Create new lock
+        timeout = timeout_minutes or self.lock_timeout.total_seconds() / 60
+        lock = StateLock(
+            locked_by=agent_id,
+            acquired_at=datetime.utcnow(),
+            expires_at=datetime.utcnow() + timedelta(minutes=timeout),
+            lock_id=uuid.uuid4()
+        )
+        
+        # Update state
+        doc_state.lock = lock
+        doc_state.last_updated = datetime.utcnow()
+        
+        # Save updated state
+        if self.storage:
+            await self.storage.save_document_state(doc_state)
+            
+        # Track lock in memory
+        self.locks[document_id] = lock
+            
+        return lock
+        
+    async def unlock_document(self, document_id: str, agent_id: str) -> bool:
+        """
+        Unlock a document.
+        """
+        # Get current state
+        doc_state = await self.get_document_state(document_id)
+        if not doc_state:
+            raise ValueError(f"Document {document_id} not found")
+            
+        # Check if locked by this agent
+        if not doc_state.lock:
+            return True  # Already unlocked
+            
+        if doc_state.lock.locked_by != agent_id:
+            raise LockError(f"Document {document_id} is locked by {doc_state.lock.locked_by}, not {agent_id}")
+            
+        # Remove lock
+        doc_state.lock = None
+        doc_state.last_updated = datetime.utcnow()
+        
+        # Save updated state
+        if self.storage:
+            await self.storage.save_document_state(doc_state)
+            
+        # Remove from in-memory tracking
+        if document_id in self.locks:
+            del self.locks[document_id]
+            
+        return True
+        
+    async def refresh_lock(self, document_id: str, agent_id: str) -> StateLock:
+        """
+        Refresh a document lock to prevent expiration.
+        """
+        # Get current state
+        doc_state = await self.get_document_state(document_id)
+        if not doc_state or not doc_state.lock:
+            raise LockError(f"Document {document_id} is not locked")
+            
+        # Check if locked by this agent
+        if doc_state.lock.locked_by != agent_id:
+            raise LockError(f"Document {document_id} is locked by {doc_state.lock.locked_by}, not {agent_id}")
+            
+        # Refresh lock
+        timeout_minutes = self.lock_timeout.total_seconds() / 60
+        doc_state.lock.expires_at = datetime.utcnow() + timedelta(minutes=timeout_minutes)
+        doc_state.last_updated = datetime.utcnow()
+        
+        # Save updated state
+        if self.storage:
+            await self.storage.save_document_state(doc_state)
+            
+        # Update in-memory tracking
+        self.locks[document_id] = doc_state.lock
+            
+        return doc_state.lock
+        
+    async def check_expired_locks(self):
+        """
+        Check for and clean up expired locks.
+        """
+        now = datetime.utcnow()
+        expired_locks = []
+        
+        for document_id, lock in self.locks.items():
+            if lock.expires_at <= now:
+                expired_locks.append(document_id)
+                
+        for document_id in expired_locks:
+            doc_state = await self.get_document_state(document_id)
+            if doc_state and doc_state.lock:
+                doc_state.lock = None
+                doc_state.last_updated = now
+                logger.info(f"Removed expired lock for document {document_id}")
+                
+                if self.storage:
+                    await self.storage.save_document_state(doc_state)
+                    
+            if document_id in self.locks:
+                del self.locks[document_id]

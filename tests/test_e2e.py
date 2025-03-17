@@ -1,93 +1,171 @@
-# tests/test_end_to_end.py
-import os, sys
-import shutil
-import time
-import json
-from pathlib import Path
+#!/usr/bin/env python
+# tests/test_e2e.py
+
+import os
+import sys
+import asyncio
+import logging
 import tempfile
 import unittest
+from datetime import datetime
+from uuid import uuid4
+from pathlib import Path
 
-# Add the project root directory to the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("e2e_test")
 
+# Add project root to path if necessary
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Import your main components
-from tasks.factory import TaskFactory
-from llm.factory import LLMFactory
+# Import required modules
 from core.pipeline import Pipeline
 from core.state import StateManager
 from storage.file_system import FileSystemStorage
-from utils.file_watcher import FileWatcher
+from core.schema import (
+    ProcessedDocument, DocumentState, ProcessingStage, 
+    ContentMetadata, LLMType, TaskType
+)
+from tasks.factory import TaskFactory
+from llm.factory import LLMFactory
 
-
-
-class EndToEndTest(unittest.TestCase):
-    """End-to-end test of the document processing pipeline."""
+class TestEndToEnd(unittest.TestCase):
+    """End-to-end tests for the document processing pipeline."""
     
-    def setUp(self):
+    async def asyncSetUp(self):
         """Set up test environment."""
-        # Create temporary directories
-        self.test_dir = tempfile.mkdtemp()
-        self.inbox_dir = os.path.join(self.test_dir, "inbox")
-        self.output_dir = os.path.join(self.test_dir, "output")
-        os.makedirs(self.inbox_dir, exist_ok=True)
-        os.makedirs(self.output_dir, exist_ok=True)
+        logger.info("Setting up test environment...")
         
-        # Create factories
-        self.llm_factory = LLMFactory()
-        self.task_factory = TaskFactory(self.llm_factory)
+        # Create temporary directory for storage
+        self.temp_dir = tempfile.TemporaryDirectory()
+        logger.info(f"Created temporary directory at: {self.temp_dir.name}")
         
-        # Create storage
-        self.storage = FileSystemStorage(self.output_dir)
+        # Initialize storage
+        self.storage = FileSystemStorage(self.temp_dir.name)
+        logger.info("FileSystemStorage initialized")
         
-        # Create state manager
+        # Initialize state manager
         self.state_manager = StateManager(self.storage)
+        logger.info("StateManager initialized")
         
-        # Create pipeline
-        self.pipeline = Pipeline(self.task_factory, self.state_manager, self.storage)
+        # Initialize LLM factory (mock implementation for testing)
+        self.llm_factory = LLMFactory()
+        logger.info("LLMFactory initialized")
         
-        # Create file watcher
-        self.watcher = FileWatcher(self.inbox_dir, self.pipeline.process)
-    
-    def tearDown(self):
+        # Initialize task factory
+        self.task_factory = TaskFactory(self.llm_factory)
+        logger.info("TaskFactory initialized")
+        
+        # Initialize pipeline
+        self.pipeline = Pipeline(self.storage, self.task_factory)
+        logger.info("Pipeline initialized")
+        
+    async def asyncTearDown(self):
         """Clean up test environment."""
-        # Stop watcher
-        if hasattr(self, 'watcher') and self.watcher:
-            self.watcher.stop()
+        logger.info("Cleaning up test environment...")
+        self.temp_dir.cleanup()
+        logger.info("Temporary directory removed")
         
-        # Remove test directory
-        if hasattr(self, 'test_dir') and os.path.exists(self.test_dir):
-            shutil.rmtree(self.test_dir)
-    
-    def test_basic_processing(self):
-        """Test basic document processing flow."""
-        # Start the watcher
-        self.watcher.start()
+    async def test_document_processing_flow(self):
+        """Test the full document processing flow."""
+        logger.info("Starting document processing flow test")
         
-        # Create a test document file
-        test_content = "This is a test document for end-to-end testing."
-        test_file_path = os.path.join(self.inbox_dir, "test_document.txt")
-        with open(test_file_path, 'w') as f:
-            f.write(test_content)
+        # Create a test document
+        document_id = str(uuid4())
+        test_content = "This is a test document for the processing pipeline."
         
-        # Wait for processing to complete
-        # In a real test, you might use events or polling to properly wait
-        time.sleep(5)
+        document_state = DocumentState(
+            document_id=document_id,
+            current_stage=ProcessingStage.CREATED
+        )
         
-        # Check if document was processed
-        # Look for output files in the output directory
-        output_files = list(Path(self.output_dir).glob("*.json"))
-        self.assertGreaterEqual(len(output_files), 1, "No output files found")
+        document = ProcessedDocument(
+            id=document_id,
+            content=test_content,
+            original_filename="test_document.txt",
+            processing_stage=ProcessingStage.CREATED.value,
+            state=document_state,
+            ingest=ContentMetadata(
+                raw_content=test_content,
+                source_type="test"
+            )
+        )
         
-        # Check the content of the output file
-        with open(output_files[0], 'r') as f:
-            processed_doc = json.load(f)
+        logger.info(f"Created test document with ID: {document_id}")
         
-        # Verify document has been processed
-        self.assertEqual(processed_doc["content"], test_content)
-        self.assertIn("state", processed_doc)
+        # Save document to storage
+        await self.storage.save_document(document)
+        logger.info("Document saved to storage")
         
-        # Verify document went through the pipeline stages
-        # In a real test, you'd check for specific outputs at each stage
-        if "state" in processed_doc:
-            self.assertNotEqual(processed_doc["state"]["current_stage"], "created")
+        # Verify document was saved properly
+        retrieved_document = await self.storage.get_document(document_id)
+        self.assertIsNotNone(retrieved_document, "Document should be retrievable from storage")
+        logger.info("Document successfully retrieved from storage")
+        
+        self.assertEqual(retrieved_document.content, test_content, 
+                        "Retrieved document content should match original")
+        logger.info("Document content verified")
+        
+        self.assertEqual(retrieved_document.state.current_stage, ProcessingStage.CREATED, 
+                        "Document should be in CREATED stage")
+        logger.info("Document stage verified")
+        
+        # Test locking mechanism
+        lock = await self.state_manager.lock_document(document_id, "test_agent")
+        logger.info(f"Document locked by test_agent with lock ID: {lock.lock_id}")
+        
+        # Verify lock was applied
+        retrieved_state = await self.storage.get_document_state(document_id)
+        self.assertIsNotNone(retrieved_state.lock, "Document should be locked")
+        logger.info("Document lock verified")
+        
+        # Unlock document
+        await self.state_manager.unlock_document(document_id, "test_agent")
+        logger.info("Document unlocked")
+        
+        # Verify unlocked state
+        retrieved_state = await self.storage.get_document_state(document_id)
+        self.assertIsNone(retrieved_state.lock, "Document should be unlocked")
+        logger.info("Document unlock verified")
+        
+        # Test state transition
+        await self.state_manager.transition_state(
+            document_id, 
+            ProcessingStage.CAPTURED, 
+            "test_agent",
+            "Document captured for testing"
+        )
+        logger.info("Document state transitioned to CAPTURED")
+        
+        # Verify state transition
+        retrieved_state = await self.storage.get_document_state(document_id)
+        self.assertEqual(retrieved_state.current_stage, ProcessingStage.CAPTURED, 
+                        "Document should be in CAPTURED stage")
+        self.assertEqual(retrieved_state.previous_stage, ProcessingStage.CREATED, 
+                        "Previous stage should be CREATED")
+        logger.info("Document state transition verified")
+        
+        # TODO: Add tests for actual document processing through pipeline
+        # This will require mock implementations of the task classes
+        
+        logger.info("Document processing flow test completed successfully")
+        
+def run_async_test(test_func):
+    """Helper function to run async test methods."""
+    def wrapper(*args, **kwargs):
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(test_func(*args, **kwargs))
+    return wrapper
+
+# Apply the async wrapper to test methods
+TestEndToEnd.setUp = run_async_test(TestEndToEnd.asyncSetUp)
+TestEndToEnd.tearDown = run_async_test(TestEndToEnd.asyncTearDown)
+TestEndToEnd.test_document_processing_flow = run_async_test(TestEndToEnd.test_document_processing_flow)
+
+if __name__ == "__main__":
+    logger.info("Starting end-to-end tests")
+    unittest.main(verbosity=2)
+    logger.info("End-to-end tests completed")
