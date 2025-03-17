@@ -1,42 +1,49 @@
 # tasks/factory.py
+import logging
+from typing import Dict, Any, Optional, Type
+
+from core.schema import TaskType
+from .base import Task
+from .contextualizer import Contextualizer
+from .clarifier import Clarifier
+from .categorizer import Categorizer
+from .crystallizer import Crystallizer
+from .connection_mapper import ConnectionMapper
+
+logger = logging.getLogger(__name__)
+
 class TaskFactory:
-    """Factory for creating processing tasks."""
+    """
+    Factory for creating task instances based on task type.
+    """
     
-    def __init__(self, llm_factory=None):
+    def __init__(self, llm_factory):
         self.llm_factory = llm_factory
-        self.tasks = {}
+        self.task_registry = {
+            TaskType.CONTEXTUALIZER: Contextualizer,
+            TaskType.CLARIFIER: Clarifier,
+            TaskType.CATEGORIZER: Categorizer,
+            TaskType.CRYSTALLIZER: Crystallizer,
+            TaskType.CONNECTION_MAPPER: ConnectionMapper
+        }
+        logger.info(f"TaskFactory initialized with {len(self.task_registry)} task types")
         
-    def get_task(self, task_name):
-        """Get a task instance by name."""
-        # Return cached task if it exists
-        if task_name in self.tasks:
-            return self.tasks[task_name]
+    def create_task(self, task_type: TaskType, config: Optional[Dict[str, Any]] = None) -> Task:
+        """
+        Create a task instance of the specified type.
+        """
+        if task_type not in self.task_registry:
+            raise ValueError(f"Unknown task type: {task_type}")
             
-        # Create new task instance based on name
-        if task_name == "contextualize":
-            from .contextualizer import ContextualizerTask
-            task = ContextualizerTask(self.llm_factory)
-        elif task_name == "clarify":
-            from .clarifier import ClarifierTask
-            task = ClarifierTask(self.llm_factory)
-        elif task_name == "categorize":
-            from .categorizer import CategorizerTask
-            task = CategorizerTask(self.llm_factory)
-        elif task_name == "crystallize":
-            from .crystallizer import CrystallizerTask
-            task = CrystallizerTask(self.llm_factory)
-        elif task_name == "connect":
-            from .connector import ConnectorTask
-            task = ConnectorTask(self.llm_factory)
-        else:
-            return None
-            
-        # Cache and return task
-        self.tasks[task_name] = task
-        return task
+        task_class = self.task_registry[task_type]
+        task_instance = task_class(self.llm_factory, config)
         
-    def register_task(self, task_name, task_class):
-        """Register a custom task implementation."""
-        task = task_class(self.llm_factory)
-        self.tasks[task_name] = task
-        return task
+        logger.debug(f"Created {task_type} task instance")
+        return task_instance
+    
+    def register_task(self, task_type: TaskType, task_class: Type[Task]):
+        """
+        Register a new task type.
+        """
+        self.task_registry[task_type] = task_class
+        logger.info(f"Registered new task type: {task_type}")
