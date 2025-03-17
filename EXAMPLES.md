@@ -18,7 +18,7 @@ This configuration sets up a simple system for capturing and processing personal
 
 ### Configuration Files
 
-wow this ai is a mess. new commit needed. 
+wow this ai is a mess. new commit needed. update.
 
 **config.yaml**
 ```yaml
