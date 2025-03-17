@@ -19,7 +19,7 @@ except ImportError:
     def load_dotenv(*args, **kwargs):
         pass
 
-from adapters.factory import create_adapter_from_config
+from core.factory import create_adapter_from_config
 from tools.file_watcher import watch_folder, process_existing_files, CaptureHandler
 
 def load_env_vars(env_path: str = None):

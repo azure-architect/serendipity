@@ -4,7 +4,7 @@ import json
 import yaml
 import logging
 from datetime import datetime
-from adapters import create_adapter 
+from core import create_adapter 
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -34,7 +34,7 @@ def initialize_llm_configs(config_path, adapter_type="ollama"):
             logger.info(f"Loaded {len(LLM_CONFIGS)} LLM configurations: {list(LLM_CONFIGS.keys())}")
         
         # Create and initialize the adapter
-        from adapters import create_adapter
+        from core import create_adapter
         llm_adapter = create_adapter(adapter_type)
         logger.info(f"Created {adapter_type} adapter")
         
@@ -56,7 +56,7 @@ def initialize_llm_configs(config_path, adapter_type="ollama"):
         }}
         
         # Create a fallback adapter
-        from adapters import create_adapter
+        from core import create_adapter
         llm_adapter = create_adapter("ollama")
         llm_adapter.initialize(LLM_CONFIGS['default'])
         logger.info("Using fallback configuration")
