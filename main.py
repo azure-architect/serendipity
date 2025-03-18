@@ -19,38 +19,8 @@ from factories.task_factory import TaskFactory
 from factories.agent_factory import AgentFactory
 from core.pipeline import Pipeline
 from services.ingestion_service import IngestionService
-from config.defaults import INGESTION_DEFAULTS
-
-# Define default pipeline configuration
-PIPELINE_DEFAULTS = [
-    {
-        "type": "contextualizer",
-        "task_type": "CONTEXTUALIZER",
-        "task_config": {
-            "tool": "text_processor",
-            "tool_config": {
-                "llm_config": {
-                    "adapter": "ollama",
-                    "model": "mistral:7b-instruct-fp16"  # Use a model you have installed
-                }
-            }
-        }
-    },
-    {
-        "type": "clarifier",
-        "task_type": "CLARIFIER",
-        "task_config": {
-            "tool": "text_processor",
-            "tool_config": {
-                "llm_config": {
-                    "adapter": "ollama",
-                    "model": "mistral:7b-instruct-fp16"  # Use a model you have installed
-                }
-            }
-        }
-    }
-    # Add more pipeline stages as needed
-]
+from config.defaults import INGESTION_DEFAULTS, PIPELINE_DEFAULTS
+from core.config import get_config  # Import configuration provider
 
 async def setup_ingestion_service():
     """Set up and return the ingestion service."""
@@ -60,8 +30,20 @@ async def setup_ingestion_service():
     task_factory = TaskFactory(tool_factory)
     agent_factory = AgentFactory(task_factory)
     
-    # Create pipeline with default configuration
-    pipeline_config = {"pipeline": PIPELINE_DEFAULTS}
+    # Get pipeline configuration from META stack config
+    config = get_config()
+    
+    # Use the configuration from config system if available, otherwise fall back to defaults
+    pipeline_config = config.get('pipeline', {})
+    
+    # If the pipeline config is empty or missing, use the defaults
+    if not pipeline_config or 'pipeline' not in pipeline_config:
+        pipeline_config = {"pipeline": PIPELINE_DEFAULTS}
+        logger.info("Using default pipeline configuration")
+    else:
+        logger.info("Using configuration from META stack config")
+    
+    # Create pipeline using either the META stack configuration or defaults
     pipeline = Pipeline(agent_factory, pipeline_config)
     logger.info("Created document processing pipeline")
     

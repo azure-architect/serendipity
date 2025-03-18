@@ -291,9 +291,9 @@ class IngestionService:
         archive_filepath = os.path.join(archive_path, archive_filename)
         
         try:
-            # Copy the original file to the archive directory
-            shutil.copy2(original_path, archive_filepath)
-            logger.info(f"Archived document {processed_document.id} to {archive_filepath}")
+            # Move the original file to the archive directory instead of copying
+            shutil.move(original_path, archive_filepath)
+            logger.info(f"Moved document {processed_document.id} from {original_path} to {archive_filepath}")
             
             # Also save the processed document as JSON for reference
             processed_json_path = os.path.join(archive_path, f"{timestamp}_{processed_document.id}.json")
@@ -327,6 +327,11 @@ class IngestionService:
             logger.info(f"Saved processed document data to {processed_json_path}")
         except Exception as e:
             logger.error(f"Error archiving document {processed_document.id}: {str(e)}", exc_info=True)
+
+
+
+
+
     
     async def _handle_failed_document(self, document_data: Dict[str, Any], error: str = "Unknown error"):
         """

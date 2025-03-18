@@ -1,9 +1,10 @@
 # config/defaults.py
 """
-Default configuration values for the document ingestion system.
+Default configuration values for the document ingestion system and processing pipeline.
 """
+from core.schema import TaskType
 
-# Define all default settings in a single dictionary
+# Define ingestion default settings
 INGESTION_DEFAULTS = {
     # Ingestion folder configuration
     "watch_folders": [
@@ -60,3 +61,72 @@ INGESTION_DEFAULTS = {
         "notify_on_queue_full": True
     }
 }
+
+# Define pipeline default settings
+PIPELINE_DEFAULTS = [
+    {
+        "type": "contextualizer",
+        "task_type": TaskType.CONTEXTUALIZER,  # Use the enum value
+        "task_config": {
+            "tool": "text_processor",
+            "tool_config": {
+                "llm_config": {
+                    "adapter": "ollama",
+                    "model": "mistral:7b-instruct-fp16"
+                }
+            }
+        }
+    },
+    {
+        "type": "clarifier",
+        "task_type": TaskType.CLARIFIER,  # Use the enum value
+        "task_config": {
+            "tool": "text_processor",
+            "tool_config": {
+                "llm_config": {
+                    "adapter": "ollama",
+                    "model": "mistral:7b-instruct-fp16"
+                }
+            }
+        }
+    },
+    {
+        "type": "categorizer",
+        "task_type": TaskType.CATEGORIZER,  # Use the enum value
+        "task_config": {
+            "tool": "text_processor",
+            "tool_config": {
+                "llm_config": {
+                    "adapter": "ollama",
+                    "model": "mistral:7b-instruct-fp16"
+                }
+            }
+        }
+    },
+    {
+        "type": "crystallizer",
+        "task_type": TaskType.CRYSTALLIZER,  # Use the enum value
+        "task_config": {
+            "tool": "text_processor",
+            "tool_config": {
+                "llm_config": {
+                    "adapter": "ollama",
+                    "model": "mistral:7b-instruct-fp16"
+                }
+            }
+        }
+    },
+    {
+        "type": "connector",
+        "task_type": TaskType.CONNECTOR,  # Use the enum value
+        "task_config": {
+            "tool": "text_processor",
+            "tool_config": {
+                "llm_config": {
+                    "adapter": "ollama",
+                    "model": "mistral:7b-instruct-fp16"
+                }
+            }
+        }
+    }
+]
