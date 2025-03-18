@@ -1,0 +1,74 @@
+{
+  "id": "7981d4fe-4541-4ddf-bbfc-dbc97b31c60f",
+  "content": "\n    I need to design a system that processes information through multiple specialized components.\n    Each component should be able to use different AI models based on its specific requirements.\n    Some components need larger context windows, while others benefit from faster response times.\n    The whole system should be configurable through YAML files.\n    ",
+  "metadata": {},
+  "status": "completed",
+  "processing_stage": "error",
+  "processing_history": [
+    {
+      "stage": "created",
+      "timestamp": "2025-03-18T12:05:57.926307"
+    },
+    {
+      "stage": "contextualized",
+      "timestamp": "2025-03-18T12:06:02.588296"
+    },
+    {
+      "stage": "error",
+      "timestamp": "2025-03-18T12:06:15.708638"
+    },
+    {
+      "stage": "categorized",
+      "timestamp": "2025-03-18T12:06:23.071654"
+    },
+    {
+      "stage": "error",
+      "timestamp": "2025-03-18T12:06:37.377492"
+    }
+  ],
+  "contextualize": {
+    "document_type": "email",
+    "topics": [
+      "information processing",
+      "AI models",
+      "component design",
+      "configurability"
+    ],
+    "entities": [],
+    "related_domains": [
+      "artificial intelligence",
+      "system design",
+      "configuration management"
+    ],
+    "context_notes": "This email discusses the design of a system that processes information using specialized components and different AI models. The system is configurable through YAML files."
+  },
+  "contextualize_results": "{\n\"document_type\": \"email\",\n\"topics\": [\"information processing\", \"AI models\", \"component design\", \"configurability\"],\n\"entities\": [],\n\"related_domains\": [\"artificial intelligence\", \"system design\", \"configuration management\"],\n\"context_notes\": \"This email discusses the design of a system that processes information using specialized components and different AI models. The system is configurable through YAML files.\"\n}",
+  "clarification": null,
+  "clarification_results": null,
+  "categorization": {
+    "primary_category": "System Design",
+    "secondary_categories": [
+      "AI Models",
+      "Component Design",
+      "Information Processing"
+    ],
+    "tags": [
+      "YAML configuration",
+      "Specialized components",
+      "Context windows",
+      "Response times"
+    ],
+    "relevance_scores": {
+      "AI Models": 9,
+      "Component Design": 8,
+      "Information Processing": 7,
+      "Configurability": 10
+    },
+    "classification_notes": "This document is related to the design of a system that processes information using specialized components and different AI models. The system should be configurable through YAML files."
+  },
+  "categorization_results": "{\n  \"primary_category\": \"System Design\",\n  \"secondary_categories\": [\"AI Models\", \"Component Design\", \"Information Processing\"],\n  \"tags\": [\"YAML configuration\", \"Specialized components\", \"Context windows\", \"Response times\"],\n  \"relevance_scores\": {\n    \"AI Models\": 9,\n    \"Component Design\": 8,\n    \"Information Processing\": 7,\n    \"Configurability\": 10\n  },\n  \"classification_notes\": \"This document is related to the design of a system that processes information using specialized components and different AI models. The system should be configurable through YAML files.\"\n}",
+  "crystallization": null,
+  "crystallization_results": null,
+  "connection": null,
+  "connection_results": null
+}

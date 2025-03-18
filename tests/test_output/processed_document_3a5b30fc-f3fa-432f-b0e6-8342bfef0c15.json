@@ -1,5 +1,0 @@
-{
-  "id": "3a5b30fc-f3fa-432f-b0e6-8342bfef0c15",
-  "content": "\n    I need to design a system that processes information through multiple specialized components.\n    Each component should be able to use different AI models based on its specific requirements.\n    Some components need larger context windows, while others benefit from faster response times.\n    The whole system should be configurable through YAML files.\n    ",
-  "metadata": {},
-  "status": 

@@ -17,8 +17,17 @@ class TaskFactory:
         """Register default task implementations."""
         # Import default tasks here to avoid circular imports
         from implementations.tasks.contextualizer_task import ContextualizerTask
+        from implementations.tasks.clarifier_task import ClarifierTask
+        from implementations.tasks.categorizer_task import CategorizerTask
+        from implementations.tasks.crystallizer_task import CrystallizerTask
+        from implementations.tasks.connector_task import ConnectorTask
         
         self.register_task(TaskType.CONTEXTUALIZER, ContextualizerTask)
+        self.register_task(TaskType.CLARIFIER, ClarifierTask)
+        self.register_task(TaskType.CATEGORIZER, CategorizerTask)
+        self.register_task(TaskType.CRYSTALLIZER, CrystallizerTask)
+        self.register_task(TaskType.CONNECTOR, ConnectorTask)
+        
         # Register other tasks as they become available
     
     def register_task(self, task_type: TaskType, task_class: Type[ITask]) -> None:

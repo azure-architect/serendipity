@@ -1,0 +1,93 @@
+{
+  "id": "8d72600e-1587-44b0-8463-e96a74acc8c8",
+  "content": "\n    I need to design a system that processes information through multiple specialized components.\n    Each component should be able to use different AI models based on its specific requirements.\n    Some components need larger context windows, while others benefit from faster response times.\n    The whole system should be configurable through YAML files.\n    ",
+  "metadata": {},
+  "status": "completed",
+  "processing_stage": "error",
+  "processing_history": [
+    {
+      "stage": "created",
+      "timestamp": "2025-03-18T12:04:38.607518"
+    },
+    {
+      "stage": "contextualized",
+      "timestamp": "2025-03-18T12:04:44.185679"
+    },
+    {
+      "stage": "error",
+      "timestamp": "2025-03-18T12:04:53.877010"
+    },
+    {
+      "stage": "categorized",
+      "timestamp": "2025-03-18T12:04:59.059029"
+    },
+    {
+      "stage": "crystallized",
+      "timestamp": "2025-03-18T12:05:11.180783"
+    }
+  ],
+  "contextualize": {
+    "document_type": "research paper",
+    "topics": [
+      "AI models",
+      "information processing",
+      "specialized components",
+      "configurability"
+    ],
+    "entities": [],
+    "related_domains": [
+      "Artificial Intelligence",
+      "Computer Science",
+      "System Design"
+    ],
+    "context_notes": "This document discusses the design of a system that utilizes AI models in its specialized components for information processing. The system is configurable through YAML files and can adapt to different requirements based on component needs."
+  },
+  "contextualize_results": "{\n  \"document_type\": \"research paper\",\n  \"topics\": [\"AI models\", \"information processing\", \"specialized components\", \"configurability\"],\n  \"entities\": [],\n  \"related_domains\": [\"Artificial Intelligence\", \"Computer Science\", \"System Design\"],\n  \"context_notes\": \"This document discusses the design of a system that utilizes AI models in its specialized components for information processing. The system is configurable through YAML files and can adapt to different requirements based on component needs.\"\n}",
+  "clarification": null,
+  "clarification_results": null,
+  "categorization": {
+    "primary_category": "AI and Machine Learning",
+    "secondary_categories": [
+      "Information Processing",
+      "System Design"
+    ],
+    "tags": [
+      "AI Models",
+      "Specialized Components",
+      "Configurability"
+    ],
+    "relevance_scores": {
+      "AI Models": 10,
+      "Information Processing": 9,
+      "System Design": 8
+    },
+    "classification_notes": ""
+  },
+  "categorization_results": "{\n  \"primary_category\": \"AI and Machine Learning\",\n  \"secondary_categories\": [\"Information Processing\", \"System Design\"],\n  \"tags\": [\"AI Models\", \"Specialized Components\", \"Configurability\"],\n  \"relevance_scores\": {\n    \"AI Models\": 10,\n    \"Information Processing\": 9,\n    \"System Design\": 8\n  },\n  \"classification_notes\": \"\"\n}",
+  "crystallization": {
+    "executive_summary": "The document describes the design of a system that processes information using multiple specialized components and different AI models depending on their specific requirements. Some components require larger context windows, while others benefit from faster response times. The entire system is configurable through YAML files.",
+    "key_points": [
+      "Design of a system for processing information using multiple specialized components",
+      "Each component can use different AI models based on specific requirements",
+      "Some components need larger context windows, while others benefit from faster response times",
+      "The whole system is configurable through YAML files"
+    ],
+    "core_concepts": [
+      "AI models",
+      "specialized components",
+      "configurability",
+      "context windows",
+      "response times"
+    ],
+    "conclusions": [
+      "The system design allows for flexibility in AI model selection and component configuration to meet specific requirements."
+    ],
+    "questions_raised": [
+      "What specific requirements do the components have for AI models?",
+      "How are the context windows and response times determined for each component?"
+    ]
+  },
+  "crystallization_results": "{\n  \"executive_summary\": \"The document describes the design of a system that processes information using multiple specialized components and different AI models depending on their specific requirements. Some components require larger context windows, while others benefit from faster response times. The entire system is configurable through YAML files.\",\n  \"key_points\": [\n    \"Design of a system for processing information using multiple specialized components\",\n    \"Each component can use different AI models based on specific requirements\",\n    \"Some components need larger context windows, while others benefit from faster response times\",\n    \"The whole system is configurable through YAML files\"\n  ],\n  \"core_concepts\": [\n    \"AI models\",\n    \"specialized components\",\n    \"configurability\",\n    \"context windows\",\n    \"response times\"\n  ],\n  \"conclusions\": [\n    \"The system design allows for flexibility in AI model selection and component configuration to meet specific requirements.\"\n  ],\n  \"questions_raised\": [\n    \"What specific requirements do the components have for AI models?\",\n    \"How are the context windows and response times determined for each component?\"\n  ]\n}",
+  "connection": null,
+  "connection_results": null
+}

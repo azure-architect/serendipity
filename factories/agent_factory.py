@@ -3,6 +3,11 @@ from typing import Dict, Any, List, Type
 
 from core.interfaces import IAgent
 from implementations.agents.contextualizer_agent import ContextualizerAgent
+from implementations.agents.clarifier_agent import ClarifierAgent
+from implementations.agents.crystallizer_agent import CrystallizerAgent  # Add import
+from implementations.agents.connector_agent import ConnectorAgent  
+from implementations.agents.categorizer_agent import CategorizerAgent  # Add import
+
 
 class AgentFactory:
     """Factory for creating agent instances."""
@@ -11,6 +16,10 @@ class AgentFactory:
         self.task_factory = task_factory
         self.agents = {
             "contextualizer": ContextualizerAgent,
+            "clarifier": ClarifierAgent,
+            "crystallizer": CrystallizerAgent,  
+            "connector": ConnectorAgent,  # Add the new agent
+            "categorizer": CategorizerAgent,  # Add the new agent
             # Add other agent types as needed
         }
     
