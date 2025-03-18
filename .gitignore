@@ -4,6 +4,9 @@ venv/
 env/
 ENV/
 .env
+processed/
+failed/
+inbox/
 
 # Python bytecode
 __pycache__/
