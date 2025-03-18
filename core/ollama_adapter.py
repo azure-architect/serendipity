@@ -15,7 +15,7 @@ class OllamaAdapter(LLMAdapter):
         
     def initialize(self, config: Dict[str, Any]) -> None:
         """Initialize the Ollama adapter with configuration."""
-        self.model = config.get("model", "llama3")
+        self.model = config.get("model", "mistral:7b-instruct-fp16")
         self.temperature = config.get("temperature", 0.7)
         self.max_tokens = config.get("max_tokens", 1000)
         

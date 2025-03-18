@@ -6,9 +6,6 @@ import uuid
 import asyncio
 from enum import Enum
 
-# Remove this circular import
-# from .state import StateManager, LockError
-
 from .schema import (
     DocumentState, ProcessingStage, StateTransition, 
     StateLock, ProcessedDocument
@@ -65,6 +62,9 @@ class StateManager:
             timestamp=datetime.utcnow(),
             message=message
         )
+        
+        # Log the transition
+        logger.info(f"Document {document_id} transitioning from {doc_state.current_stage.value} to {to_stage.value} by {agent_id}")
         
         # Update state
         doc_state.previous_stage = doc_state.current_stage

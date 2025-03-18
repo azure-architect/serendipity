@@ -6,13 +6,19 @@ from pydantic import BaseModel, Field
 
 class ProcessingStage(Enum):
     """Enum for the different processing stages of a thought."""
-    INITIAL = "initial"
+    CREATED = "created"
     CAPTURED = "captured"
+    CONTEXTUALIZING = "contextualizing"
     CONTEXTUALIZED = "contextualized"
+    CLARIFYING = "clarifying"
     CLARIFIED = "clarified"
+    CATEGORIZING = "categorizing"
     CATEGORIZED = "categorized"
+    CRYSTALLIZING = "crystallizing"
     CRYSTALLIZED = "crystallized"
+    CONNECTING = "connecting"
     CONNECTED = "connected"
+    ERROR = "error"
 
 class TaskType(Enum):
     """Enum for the different types of tasks."""
@@ -105,7 +111,7 @@ class ProcessedDocument(BaseModel):
     content: str
     metadata: Dict[str, Any] = Field(default_factory=dict)
     status: DocumentStatus = DocumentStatus.PENDING
-    processing_stage: str = ProcessingStage.INITIAL.value
+    processing_stage: str = ProcessingStage.CREATED.value
     processing_history: List[ProcessStage] = Field(default_factory=list)
     
     # Results from each processing stage

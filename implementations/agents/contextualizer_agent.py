@@ -31,6 +31,9 @@ class ContextualizerAgent(IAgent):
         """Get the agent's description."""
         return self._description
     
+# implementations/agents/contextualizer_agent.py
+# Update the process method to use the intermediate states
+
     async def process(self, document: ProcessedDocument) -> ProcessedDocument:
         """
         Process a document to extract contextual information.
@@ -50,6 +53,34 @@ class ContextualizerAgent(IAgent):
                 timestamp=datetime.now().isoformat()
             )
         )
+        
+        # Update the current processing stage to CONTEXTUALIZING (in progress)
+        document.processing_stage = ProcessingStage.CONTEXTUALIZING.value
+        
+        try:
+            # Use the task to process the document
+            logger.info(f"Calling task.process for document {document.id}")
+            task_result = await self.task.process(document)
+            
+            if task_result.success:
+                # Update document with contextualization data
+                document.contextualize = task_result.result_data
+                document.contextualize_results = task_result.raw_response
+                # Set to CONTEXTUALIZED (completed)
+                document.processing_stage = ProcessingStage.CONTEXTUALIZED.value
+                logger.info(f"Successfully contextualized document {document.id}")
+            else:
+                # Record error
+                document.processing_stage = ProcessingStage.ERROR.value
+                logger.error(f"Failed to contextualize document {document.id}: {task_result.error_message}")
+            
+            return document
+            
+        except Exception as e:
+            # Handle exceptions
+            document.processing_stage = ProcessingStage.ERROR.value
+            logger.error(f"Error in {self._name} agent: {str(e)}", exc_info=True)
+            return document
         
         # Update the current processing stage
         document.processing_stage = ProcessingStage.CONTEXTUALIZING.value

@@ -48,6 +48,7 @@ async def test_document_pipeline():
     agent_factory = AgentFactory(task_factory)
     
     # Create pipeline configuration
+# Create pipeline configuration
     pipeline_config = {
         "pipeline": [
             {
@@ -58,7 +59,7 @@ async def test_document_pipeline():
                     "tool_config": {
                         "llm_config": {
                             "adapter": "ollama",
-                            "model": "llama3",
+                            "model": "mistral:7b-instruct-fp16",  # Changed from "llama3" to match available model
                             "temperature": 0.7
                         }
                     }
@@ -98,12 +99,21 @@ async def test_document_pipeline():
         output_file = output_path / f"processed_document_{document_id}.json"
         with open(output_file, "w") as f:
             import json
-            json.dump(processed_document.model_dump(), f, indent=2)
+            from enum import Enum
+            
+            # Create a modified dump that handles enums
+            serializable_data = processed_document.model_dump()
+            # Convert any enum values to strings
+            for key, value in list(serializable_data.items()):
+                if isinstance(value, Enum):
+                    serializable_data[key] = value.value
+            
+            json.dump(serializable_data, f, indent=2)
             
         logger.info(f"Saved processed document to {output_file}")
         
         return processed_document
-        
+
     except Exception as e:
         logger.error(f"Error processing document: {str(e)}")
         import traceback
