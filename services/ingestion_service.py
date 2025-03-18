@@ -3,6 +3,8 @@ import os
 import uuid
 import asyncio
 import logging
+import json
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -32,13 +34,20 @@ class IngestionService:
         self.config = config or {}
         self.file_watchers = []
         self.running = False
-        self.processing_queue = asyncio.Queue()
         self.processed_count = 0
         self.failed_count = 0
         
-        # Use defaults or override with provided config
+        # Import configuration with fallbacks to defaults
         self.watch_folders = self.config.get("watch_folders", INGESTION_DEFAULTS["watch_folders"])
         self.processing_config = self.config.get("processing", INGESTION_DEFAULTS["processing"])
+        self.file_type_handlers = self.config.get("file_type_handlers", INGESTION_DEFAULTS["file_type_handlers"])
+        self.queue_config = self.config.get("queue_config", INGESTION_DEFAULTS["queue_config"])
+        self.post_processing = self.config.get("post_processing", INGESTION_DEFAULTS["post_processing"])
+        self.notifications = self.config.get("notifications", INGESTION_DEFAULTS["notifications"])
+        
+        # Configure queue based on settings
+        max_queue_size = self.queue_config.get("max_queue_size", 100)
+        self.processing_queue = asyncio.Queue(maxsize=max_queue_size)
         
         # Create processing task
         self.processing_task = None
@@ -135,8 +144,14 @@ class IngestionService:
             document_data: Data about the detected file
         """
         # Add to processing queue
-        await self.processing_queue.put(document_data)
-        logger.info(f"Queued file for processing: {document_data.get('metadata', {}).get('original_filename', 'unknown')}")
+        try:
+            await self.processing_queue.put(document_data)
+            logger.info(f"Queued file for processing: {document_data.get('metadata', {}).get('original_filename', 'unknown')}")
+        except asyncio.QueueFull:
+            logger.error("Processing queue is full, cannot add new document")
+            if self.notifications.get("notify_on_queue_full", True):
+                # In a real system, this would trigger an alert or notification
+                pass
     
     async def _process_queue(self):
         """Process documents from the queue."""
@@ -179,6 +194,21 @@ class IngestionService:
         
         while retry_count <= max_retries:
             try:
+                # Check file size limits
+                file_size = document_data.get("metadata", {}).get("file_size", 0)
+                max_size_bytes = self.config.get("max_file_size_mb", INGESTION_DEFAULTS["max_file_size_mb"]) * 1024 * 1024
+                min_size_bytes = self.config.get("min_file_size_bytes", INGESTION_DEFAULTS["min_file_size_bytes"])
+                
+                if file_size > max_size_bytes:
+                    logger.warning(f"File exceeds maximum size limit: {file_size} bytes > {max_size_bytes} bytes")
+                    await self._handle_failed_document(document_data, error="File size exceeds limit")
+                    return None
+                
+                if file_size < min_size_bytes:
+                    logger.warning(f"File below minimum size limit: {file_size} bytes < {min_size_bytes} bytes")
+                    await self._handle_failed_document(document_data, error="File size below minimum")
+                    return None
+                
                 # Create a ProcessedDocument from the file data
                 document = ProcessedDocument(
                     id=document_data.get("id", str(uuid.uuid4())),
@@ -197,9 +227,19 @@ class IngestionService:
                 if processed_document.status == DocumentStatus.COMPLETED:
                     self.processed_count += 1
                     logger.info(f"Successfully processed document {document.id}")
+                    
+                    # Send notification if configured
+                    if self.notifications.get("notify_on_success", False):
+                        # In a real system, this would trigger a success notification
+                        pass
                 else:
                     self.failed_count += 1
                     logger.warning(f"Document processing incomplete: {document.id}, status: {processed_document.status}")
+                    
+                    # Send notification if configured
+                    if self.notifications.get("notify_on_failure", True):
+                        # In a real system, this would trigger a failure notification
+                        pass
                 
                 # Archive the original file if configured
                 await self._handle_post_processing(document_data, processed_document)
@@ -211,14 +251,14 @@ class IngestionService:
                 logger.error(f"Error processing document (attempt {retry_count}/{max_retries}): {str(e)}", exc_info=True)
                 
                 if retry_count <= max_retries:
-                    # Wait before retrying
+                    # Wait before retrying with exponential backoff
                     await asyncio.sleep(retry_count * 2)
                 else:
                     self.failed_count += 1
                     logger.error(f"Failed to process document after {max_retries} attempts")
                     
                     # Handle failed document
-                    await self._handle_failed_document(document_data)
+                    await self._handle_failed_document(document_data, error=str(e))
                     return None
     
     async def _handle_post_processing(self, document_data: Dict[str, Any], processed_document: ProcessedDocument):
@@ -229,18 +269,118 @@ class IngestionService:
             document_data: Original document data
             processed_document: Processed document
         """
-        # Implementation for archiving can be added here
-        pass
+        # Skip if archiving is disabled
+        if not self.post_processing.get("archive_processed", True):
+            logger.debug(f"Archiving disabled, skipping post-processing for document {processed_document.id}")
+            return
+        
+        # Get the original file path
+        original_path = document_data.get("metadata", {}).get("original_path")
+        if not original_path:
+            logger.warning(f"No original path found for document {processed_document.id}, cannot archive")
+            return
+        
+        # Create archive directory if it doesn't exist
+        archive_path = self.post_processing.get("archive_path", "./processed")
+        os.makedirs(archive_path, exist_ok=True)
+        
+        # Generate archive filename
+        original_filename = document_data.get("metadata", {}).get("original_filename", "unknown")
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        archive_filename = f"{timestamp}_{processed_document.id}_{original_filename}"
+        archive_filepath = os.path.join(archive_path, archive_filename)
+        
+        try:
+            # Copy the original file to the archive directory
+            shutil.copy2(original_path, archive_filepath)
+            logger.info(f"Archived document {processed_document.id} to {archive_filepath}")
+            
+            # Also save the processed document as JSON for reference
+            processed_json_path = os.path.join(archive_path, f"{timestamp}_{processed_document.id}.json")
+            
+            # Prepare document for serialization
+            if hasattr(processed_document, 'model_dump'):
+                # Pydantic v2 model
+                doc_dict = processed_document.model_dump()
+            elif hasattr(processed_document, 'dict'):
+                # Pydantic v1 model
+                doc_dict = processed_document.dict()
+            else:
+                # Regular object - convert to dict manually
+                doc_dict = {
+                    "id": processed_document.id,
+                    "content": processed_document.content,
+                    "metadata": processed_document.metadata,
+                    "status": str(processed_document.status),
+                    "processing_stage": processed_document.processing_stage
+                }
+                
+                # Add results from each stage if available
+                for stage in ["contextualize", "clarify", "categorize", "crystallize", "connect"]:
+                    if hasattr(processed_document, f"{stage}_results"):
+                        doc_dict[f"{stage}_results"] = getattr(processed_document, f"{stage}_results")
+            
+            # Write the JSON file
+            with open(processed_json_path, 'w', encoding='utf-8') as f:
+                json.dump(doc_dict, f, indent=2, default=str)
+            
+            logger.info(f"Saved processed document data to {processed_json_path}")
+        except Exception as e:
+            logger.error(f"Error archiving document {processed_document.id}: {str(e)}", exc_info=True)
     
-    async def _handle_failed_document(self, document_data: Dict[str, Any]):
+    async def _handle_failed_document(self, document_data: Dict[str, Any], error: str = "Unknown error"):
         """
         Handle a failed document.
         
         Args:
             document_data: Document data that failed processing
+            error: Error message describing the failure
         """
-        # Implementation for handling failed documents can be added here
-        pass
+        # Get the original file path
+        original_path = document_data.get("metadata", {}).get("original_path")
+        if not original_path:
+            logger.warning("No original path found for failed document, cannot process")
+            return
+        
+        # Create failed directory if it doesn't exist
+        failed_path = self.post_processing.get("failed_path", "./failed")
+        os.makedirs(failed_path, exist_ok=True)
+        
+        # Generate failed filename
+        original_filename = document_data.get("metadata", {}).get("original_filename", "unknown")
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        failed_filename = f"failed_{timestamp}_{original_filename}"
+        failed_filepath = os.path.join(failed_path, failed_filename)
+        
+        try:
+            # Copy the original file to the failed directory
+            shutil.copy2(original_path, failed_filepath)
+            logger.info(f"Moved failed document to {failed_filepath}")
+            
+            # Add error information to document data
+            failure_info = document_data.copy()
+            failure_info["failure"] = {
+                "timestamp": datetime.now().isoformat(),
+                "error_message": error
+            }
+            
+            # Save the document data as JSON for debugging
+            failed_json_path = os.path.join(failed_path, f"failed_{timestamp}_data.json")
+            with open(failed_json_path, 'w', encoding='utf-8') as f:
+                json.dump(failure_info, f, indent=2, default=str)
+            
+            logger.info(f"Saved failed document data to {failed_json_path}")
+            
+            # Delete the original file if configured
+            if self.post_processing.get("delete_failed", False):
+                try:
+                    os.remove(original_path)
+                    logger.info(f"Deleted original failed document: {original_path}")
+                except Exception as e:
+                    logger.error(f"Error deleting failed document {original_path}: {str(e)}")
+                    
+        except Exception as e:
+            logger.error(f"Error handling failed document: {str(e)}", exc_info=True)
     
     def get_stats(self) -> Dict[str, Any]:
         """
@@ -254,5 +394,7 @@ class IngestionService:
             "queue_size": self.processing_queue.qsize(),
             "processed_count": self.processed_count,
             "failed_count": self.failed_count,
-            "watch_folders": [w.directory for w in self.file_watchers]
+            "watch_folders": [w.directory for w in self.file_watchers],
+            "archive_path": self.post_processing.get("archive_path", "./processed"),
+            "failed_path": self.post_processing.get("failed_path", "./failed")
         }

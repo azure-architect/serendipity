@@ -3,6 +3,7 @@ import os
 import time
 import logging
 import json
+import asyncio
 from pathlib import Path
 from datetime import datetime
 from typing import Callable, Dict, Any, Optional
@@ -18,7 +19,7 @@ class DocumentCreatedEvent(FileSystemEventHandler):
         """Initialize with a callback to invoke when a document is created.
         
         Args:
-            callback: Function to call with the document object
+            callback: Function or coroutine to call with the document object
             file_formats: Optional list of file extensions to process
             ignore_patterns: Optional list of patterns to ignore
         """
@@ -27,43 +28,7 @@ class DocumentCreatedEvent(FileSystemEventHandler):
         self.ignore_patterns = ignore_patterns or ['.git', '.DS_Store', '~', '.tmp']
         self._processing_lock = set()  # Track files being processed to avoid duplicates
     
-    def on_created(self, event):
-        """Handle file creation events.
-        
-        Args:
-            event: The file system event
-        """
-        # Skip directories
-        if event.is_directory:
-            return
-        
-        # Get file path
-        file_path = event.src_path
-        
-        # Check if file should be processed
-        if not self._should_process_file(file_path):
-            return
-        
-        # Avoid processing the same file multiple times
-        if file_path in self._processing_lock:
-            return
-        
-        try:
-            self._processing_lock.add(file_path)
-            logger.info(f"New file detected: {file_path}")
-            
-            # Wait a moment to ensure file is fully written
-            # This helps avoid partial reads of files still being written
-            time.sleep(0.5)
-            
-            # Process the file
-            document = self._read_file(file_path)
-            if document:
-                self.callback(document)
-        finally:
-            self._processing_lock.remove(file_path)
-    
-    def _should_process_file(self, file_path: str) -> bool:
+    def should_process_file(self, file_path: str) -> bool:
         """Determine if a file should be processed.
         
         Args:
@@ -85,7 +50,7 @@ class DocumentCreatedEvent(FileSystemEventHandler):
         
         return True
     
-    def _read_file(self, file_path: str) -> Optional[Dict[str, Any]]:
+    def read_file(self, file_path: str) -> Optional[Dict[str, Any]]:
         """Read a file and create a document object.
         
         Args:
@@ -143,6 +108,47 @@ class DocumentCreatedEvent(FileSystemEventHandler):
         except Exception as e:
             logger.error(f"Error reading file {file_path}: {e}")
             return None
+    
+    def on_created(self, event):
+        """Handle file creation events.
+        
+        Args:
+            event: The file system event
+        """
+        # Skip directories
+        if event.is_directory:
+            return
+        
+        # Get file path
+        file_path = event.src_path
+        
+        # Check if file should be processed
+        if not self.should_process_file(file_path):
+            return
+        
+        # Avoid processing the same file multiple times
+        if file_path in self._processing_lock:
+            return
+        
+        try:
+            self._processing_lock.add(file_path)
+            logger.info(f"New file detected: {file_path}")
+            
+            # Wait a moment to ensure file is fully written
+            # This helps avoid partial reads of files still being written
+            time.sleep(0.5)
+            
+            # Process the file
+            document = self.read_file(file_path)
+            if document:
+                if asyncio.iscoroutinefunction(self.callback):
+                    # Create task for async callback
+                    asyncio.create_task(self.callback(document))
+                else:
+                    # Direct call for non-async functions
+                    self.callback(document)
+        finally:
+            self._processing_lock.remove(file_path)
 
 
 class FileWatcher:
@@ -217,14 +223,22 @@ class FileWatcher:
             for root, _, files in os.walk(self.directory):
                 for file_name in files:
                     file_path = os.path.join(root, file_name)
-                    if event_handler._should_process_file(file_path):
-                        document = event_handler._read_file(file_path)
+                    if event_handler.should_process_file(file_path):
+                        document = event_handler.read_file(file_path)
                         if document:
-                            self.callback(document)
+                            if asyncio.iscoroutinefunction(self.callback):
+                                # Create task for async callback
+                                asyncio.create_task(self.callback(document))
+                            else:
+                                self.callback(document)
         else:
             for file_name in os.listdir(self.directory):
                 file_path = os.path.join(self.directory, file_name)
-                if os.path.isfile(file_path) and event_handler._should_process_file(file_path):
-                    document = event_handler._read_file(file_path)
+                if os.path.isfile(file_path) and event_handler.should_process_file(file_path):
+                    document = event_handler.read_file(file_path)
                     if document:
-                        self.callback(document)
+                        if asyncio.iscoroutinefunction(self.callback):
+                            # Create task for async callback
+                            asyncio.create_task(self.callback(document))
+                        else:
+                            self.callback(document)
