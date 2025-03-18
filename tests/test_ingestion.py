@@ -63,8 +63,8 @@ class TestIngestionService(unittest.TestCase):
                         "tool_config": {
                             "llm_config": {
                                 "adapter": "ollama",
-                                "model": "llama3",
-                                "temperature": 0.7
+                                "model": "mistral:7b-instruct-fp16",
+                                "temperature": 0.2
                             }
                         }
                     }

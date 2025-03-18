@@ -142,8 +142,22 @@ class DocumentCreatedEvent(FileSystemEventHandler):
             document = self.read_file(file_path)
             if document:
                 if asyncio.iscoroutinefunction(self.callback):
-                    # Create task for async callback
-                    asyncio.create_task(self.callback(document))
+                    # Handle async callback - need to run it in the main event loop
+                    try:
+                        # Try to get an existing event loop
+                        loop = asyncio.get_event_loop()
+                    except RuntimeError:
+                        # No event loop in this thread, create a new one
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                    
+                    # Run the coroutine using the appropriate method
+                    if loop.is_running():
+                        # If loop is running, use call_soon_threadsafe
+                        future = asyncio.run_coroutine_threadsafe(self.callback(document), loop)
+                    else:
+                        # If the loop isn't running, run the coroutine directly
+                        loop.run_until_complete(self.callback(document))
                 else:
                     # Direct call for non-async functions
                     self.callback(document)
@@ -227,8 +241,17 @@ class FileWatcher:
                         document = event_handler.read_file(file_path)
                         if document:
                             if asyncio.iscoroutinefunction(self.callback):
-                                # Create task for async callback
-                                asyncio.create_task(self.callback(document))
+                                # Handle async callback similarly to on_created
+                                try:
+                                    loop = asyncio.get_event_loop()
+                                except RuntimeError:
+                                    loop = asyncio.new_event_loop()
+                                    asyncio.set_event_loop(loop)
+                                
+                                if loop.is_running():
+                                    future = asyncio.run_coroutine_threadsafe(self.callback(document), loop)
+                                else:
+                                    loop.run_until_complete(self.callback(document))
                             else:
                                 self.callback(document)
         else:
@@ -238,7 +261,16 @@ class FileWatcher:
                     document = event_handler.read_file(file_path)
                     if document:
                         if asyncio.iscoroutinefunction(self.callback):
-                            # Create task for async callback
-                            asyncio.create_task(self.callback(document))
+                            # Handle async callback similarly to on_created
+                            try:
+                                loop = asyncio.get_event_loop()
+                            except RuntimeError:
+                                loop = asyncio.new_event_loop()
+                                asyncio.set_event_loop(loop)
+                            
+                            if loop.is_running():
+                                future = asyncio.run_coroutine_threadsafe(self.callback(document), loop)
+                            else:
+                                loop.run_until_complete(self.callback(document))
                         else:
                             self.callback(document)

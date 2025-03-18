@@ -1,0 +1,25 @@
+{
+  "id": "doc-1742333434-1067",
+  "content": "This is a test document for processing.\n",
+  "metadata": {
+    "original_filename": "test_document.txt",
+    "original_path": "/Volumes/Samsung/MO/metacranium/serendipity/inbox/test_document.txt",
+    "file_size": 40,
+    "created_at": "2025-03-19T05:30:34.430246",
+    "modified_at": "2025-03-19T05:30:34.430246",
+    "file_extension": ".txt"
+  },
+  "status": "DocumentStatus.COMPLETED",
+  "processing_stage": "created",
+  "processing_history": [],
+  "contextualize": null,
+  "contextualize_results": null,
+  "clarification": null,
+  "clarification_results": null,
+  "categorization": null,
+  "categorization_results": null,
+  "crystallization": null,
+  "crystallization_results": null,
+  "connection": null,
+  "connection_results": null
+}

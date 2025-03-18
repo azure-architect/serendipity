@@ -1,7 +1,6 @@
 # main.py
 import os
 import sys
-import yaml
 import asyncio
 import logging
 from pathlib import Path
@@ -20,18 +19,40 @@ from factories.task_factory import TaskFactory
 from factories.agent_factory import AgentFactory
 from core.pipeline import Pipeline
 from services.ingestion_service import IngestionService
+from config.defaults import INGESTION_DEFAULTS
 
-async def load_config(config_path: str = "config/config.yaml"):
-    """Load configuration from YAML file."""
-    try:
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
-        return config
-    except Exception as e:
-        logger.error(f"Error loading configuration: {e}")
-        return {}
+# Define default pipeline configuration
+PIPELINE_DEFAULTS = [
+    {
+        "type": "contextualizer",
+        "task_type": "CONTEXTUALIZER",
+        "task_config": {
+            "tool": "text_processor",
+            "tool_config": {
+                "llm_config": {
+                    "adapter": "ollama",
+                    "model": "mistral:7b-instruct-fp16"  # Use a model you have installed
+                }
+            }
+        }
+    },
+    {
+        "type": "clarifier",
+        "task_type": "CLARIFIER",
+        "task_config": {
+            "tool": "text_processor",
+            "tool_config": {
+                "llm_config": {
+                    "adapter": "ollama",
+                    "model": "mistral:7b-instruct-fp16"  # Use a model you have installed
+                }
+            }
+        }
+    }
+    # Add more pipeline stages as needed
+]
 
-async def setup_ingestion_service(config):
+async def setup_ingestion_service():
     """Set up and return the ingestion service."""
     # Create factory chain
     llm_factory = LLMFactory()
@@ -39,16 +60,13 @@ async def setup_ingestion_service(config):
     task_factory = TaskFactory(tool_factory)
     agent_factory = AgentFactory(task_factory)
     
-    # Get pipeline configuration
-    pipeline_config = config.get("pipeline", {})
-    
-    # Create pipeline
+    # Create pipeline with default configuration
+    pipeline_config = {"pipeline": PIPELINE_DEFAULTS}
     pipeline = Pipeline(agent_factory, pipeline_config)
     logger.info("Created document processing pipeline")
     
     # Create ingestion service with configuration
-    ingestion_config = config.get("ingestion", {})
-    service = IngestionService(pipeline, ingestion_config)
+    service = IngestionService(pipeline, INGESTION_DEFAULTS)
     logger.info("Created ingestion service")
     
     return service
@@ -57,11 +75,8 @@ async def main():
     """Main application entry point."""
     logger.info("Starting META Stack application")
     
-    # Load configuration
-    config = await load_config()
-    
     # Set up services
-    ingestion_service = await setup_ingestion_service(config)
+    ingestion_service = await setup_ingestion_service()
     
     # Start services
     await ingestion_service.start()
