@@ -44,7 +44,7 @@ class Pipeline:
             logger.info(f"Successfully processed document {document.id} through pipeline")
             
         except Exception as e:
-            logger.error(f"Error processing document {document.id}: {str(e)}")
+            logger.error(f"Error processing document {document.id}: {str(e)}", exc_info=True)
             document.status = DocumentStatus.ERROR
             
         return document

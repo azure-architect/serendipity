@@ -56,6 +56,7 @@ class ContextualizerAgent(IAgent):
         
         try:
             # Use the task to process the document
+            logger.info(f"Calling task.process for document {document.id}")
             task_result = await self.task.process(document)
             
             if task_result.success:
@@ -74,7 +75,7 @@ class ContextualizerAgent(IAgent):
         except Exception as e:
             # Handle exceptions
             document.processing_stage = ProcessingStage.ERROR.value
-            logger.error(f"Error in {self._name} agent: {str(e)}")
+            logger.error(f"Error in {self._name} agent: {str(e)}", exc_info=True)
             return document
     
     def get_task(self) -> ITask:

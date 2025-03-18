@@ -1,4 +1,4 @@
-# core/interfaces.py
+# core/interfaces.py (Complete)
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 
@@ -13,7 +13,7 @@ class ILLM(ABC):
         pass
     
     @abstractmethod
-    def generate(self, 
+    async def generate(self, 
                 prompt: str, 
                 system_prompt: Optional[str] = None,
                 temperature: Optional[float] = None,

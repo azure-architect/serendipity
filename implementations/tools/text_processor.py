@@ -45,10 +45,11 @@ class TextProcessor(ITool):
         
         if not text:
             logger.warning("No text provided for processing")
-            return {"error": "No text provided"}
+            return {"error": "No text provided", "success": False}
         
         try:
             prompt = f"{instruction}\n\n{text}"
+            logger.info(f"Sending prompt to LLM (length: {len(prompt)})")
             
             # Use the LLM to process the text
             result = await self.llm.generate(
@@ -57,13 +58,14 @@ class TextProcessor(ITool):
                 max_tokens=self.config.get('max_tokens', 1000)
             )
             
+            logger.info(f"Received response from LLM (length: {len(result)})")
             return {
                 "result": result,
                 "success": True
             }
             
         except Exception as e:
-            logger.error(f"Error executing text processor tool: {str(e)}")
+            logger.error(f"Error executing text processor tool: {str(e)}", exc_info=True)
             return {
                 "error": str(e),
                 "success": False

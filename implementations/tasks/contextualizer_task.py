@@ -48,6 +48,7 @@ class ContextualizerTask(ITask):
             }
             
             # Execute the tool
+            logger.info(f"Executing tool for document {document.id}")
             tool_result = await self.tool.execute(tool_inputs)
             
             if not tool_result.get('success', False):
@@ -61,11 +62,13 @@ class ContextualizerTask(ITask):
                 )
             
             # Parse the result
+            logger.info(f"Got tool result for document {document.id}, parsing result")
             llm_response = tool_result.get('result', '')
             
             try:
                 # Try to parse JSON from the response
                 json_str = self._extract_json(llm_response)
+                logger.info(f"Extracted JSON: {json_str[:100]}...")
                 context_data = json.loads(json_str)
                 
                 # Create contextualization data
@@ -82,7 +85,8 @@ class ContextualizerTask(ITask):
                     task_type=self.task_type,
                     success=True,
                     document_id=str(document.id),
-                    result_data=contextualization.model_dump()
+                    result_data=contextualization.model_dump(),
+                    raw_response=llm_response
                 )
                 
                 logger.info(f"Successfully contextualized document {document.id}")
@@ -90,15 +94,17 @@ class ContextualizerTask(ITask):
                 
             except json.JSONDecodeError as e:
                 logger.error(f"Error parsing contextualization results: {str(e)}")
+                logger.error(f"Raw response: {llm_response}")
                 return TaskResult(
                     task_type=self.task_type,
                     success=False,
                     document_id=str(document.id),
-                    error_message=f"Failed to parse JSON response: {str(e)}"
+                    error_message=f"Failed to parse JSON response: {str(e)}",
+                    raw_response=llm_response
                 )
                 
         except Exception as e:
-            logger.error(f"Error in contextualizer task: {str(e)}")
+            logger.error(f"Error in contextualizer task: {str(e)}", exc_info=True)
             return TaskResult(
                 task_type=self.task_type,
                 success=False,
