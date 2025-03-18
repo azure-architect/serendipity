@@ -27,10 +27,10 @@ async def test_full_document_pipeline():
     # Create a test document
     document_id = str(uuid4())
     test_content = """
-    I need to design a system that processes information through multiple specialized components.
-    Each component should be able to use different AI models based on its specific requirements.
-    Some components need larger context windows, while others benefit from faster response times.
-    The whole system should be configurable through YAML files.
+    I want to create a knowledge management system that processes thoughts through multiple specialized agents.
+    Each agent should focus on a specific aspect like contextualizing, clarifying, categorizing, crystallizing, or connecting ideas.
+    The system should transform raw notes into structured knowledge with metadata, summaries, and connections.
+    A modular architecture would allow different language models to be used for different processing stages.
     """
     
     document = ProcessedDocument(
