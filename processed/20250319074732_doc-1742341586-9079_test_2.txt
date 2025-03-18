@@ -1,3 +1,0 @@
-taking the Json piece out of the Mesta
-it’s full of new line characters and escape characters and I think that’s necessary. I don’t know why were capturing it so have a look into that. 
-each agent stack puts a JSON piece and it’s not four minutes I like it. I don’t mind if we keep it but what are we gonna do with it? How is it helpful because each each in gesture piece is already helpful for an out gate, it’s really nice so what are we? What are we doing with that? We really need it need to investigate.

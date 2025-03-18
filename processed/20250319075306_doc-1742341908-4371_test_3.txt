@@ -1,4 +1,0 @@
-ingestion needs to be universal and friction free
-needs to come in the form of text or voice dictation so you need to look at things I can. What’s the deal with gradio do we use nextJS? Are we going to build a PWA that can be installed on an iPhone or android that goes straight to the executive METASTACK system how do we do this? 
-
-METACRANIUM SERENDIPITY BUILT RIGHT
