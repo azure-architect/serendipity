@@ -138,6 +138,7 @@ class TaskResult(BaseModel):
     result_data: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
     processing_time: float = 0.0
+    raw_response: Optional[str] = None  # Add this field
 
 class PipelineResults(BaseModel):
     """Results of a pipeline execution."""

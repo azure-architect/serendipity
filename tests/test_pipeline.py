@@ -48,7 +48,6 @@ async def test_document_pipeline():
     agent_factory = AgentFactory(task_factory)
     
     # Create pipeline configuration
-# Create pipeline configuration
     pipeline_config = {
         "pipeline": [
             {
@@ -78,19 +77,29 @@ async def test_document_pipeline():
         processed_document = await pipeline.process_document(document)
         
         # Log results
-        logger.info(f"Document processed: status={processed_document.status.value}")
-        if processed_document.status != DocumentStatus.COMPLETED:
-            logger.error(f"Document processing failed: {processed_document.status}")
+        if processed_document.status == DocumentStatus.COMPLETED:
+            logger.info(f"✅ Document processed: status={processed_document.status.value}")
+        else:
+            logger.error(f"❌ Document processing failed: {processed_document.status}")
             return None
             
         # Check contextualization results
+        # Check contextualization results
         if hasattr(processed_document, 'contextualize') and processed_document.contextualize:
-            logger.info(f"Document type: {processed_document.contextualize.document_type}")
-            logger.info(f"Topics: {processed_document.contextualize.topics}")
-            logger.info(f"Entities: {processed_document.contextualize.entities}")
-            logger.info(f"Related domains: {processed_document.contextualize.related_domains}")
+            if isinstance(processed_document.contextualize, dict):
+                # Handle dictionary access
+                logger.info(f"✅ Document type: {processed_document.contextualize.get('document_type')}")
+                logger.info(f"✅ Topics: {processed_document.contextualize.get('topics', [])}")
+                logger.info(f"✅ Entities: {processed_document.contextualize.get('entities', [])}")
+                logger.info(f"✅ Related domains: {processed_document.contextualize.get('related_domains', [])}")
+            else:
+                # Handle object attribute access
+                logger.info(f"✅ Document type: {processed_document.contextualize.document_type}")
+                logger.info(f"✅ Topics: {processed_document.contextualize.topics}")
+                logger.info(f"✅ Entities: {processed_document.contextualize.entities}")
+                logger.info(f"✅ Related domains: {processed_document.contextualize.related_domains}")
         else:
-            logger.warning("No contextualization data available")
+            logger.warning("❌ No contextualization data available")
             
         # Save processed document to file for inspection
         output_path = Path(__file__).parent / "test_output"
@@ -110,12 +119,12 @@ async def test_document_pipeline():
             
             json.dump(serializable_data, f, indent=2)
             
-        logger.info(f"Saved processed document to {output_file}")
+        logger.info(f"✅ Saved processed document to {output_file}")
         
         return processed_document
 
     except Exception as e:
-        logger.error(f"Error processing document: {str(e)}")
+        logger.error(f"❌ Error processing document: {str(e)}")
         import traceback
         traceback.print_exc()
         return None
@@ -124,6 +133,6 @@ if __name__ == "__main__":
     result = asyncio.run(test_document_pipeline())
     
     if result:
-        logger.info("Pipeline test completed successfully")
+        logger.info("✅ Pipeline test completed successfully")
     else:
-        logger.error("Pipeline test failed")
+        logger.error("❌ Pipeline test failed")

@@ -4,7 +4,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 
 from core.interfaces import IAgent, ITask
-from core.schema import ProcessedDocument, ProcessingStage, ProcessStage
+from core.schema import ProcessedDocument, ProcessingStage, ProcessStage, ContextualizationData
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +31,6 @@ class ContextualizerAgent(IAgent):
         """Get the agent's description."""
         return self._description
     
-# implementations/agents/contextualizer_agent.py
-# Update the process method to use the intermediate states
-
     async def process(self, document: ProcessedDocument) -> ProcessedDocument:
         """
         Process a document to extract contextual information.
@@ -63,37 +60,19 @@ class ContextualizerAgent(IAgent):
             task_result = await self.task.process(document)
             
             if task_result.success:
+                # Create a proper ContextualizationData object from the result data
+                context_data = ContextualizationData(
+                    document_type=task_result.result_data.get("document_type"),
+                    topics=task_result.result_data.get("topics", []),
+                    entities=task_result.result_data.get("entities", []),
+                    related_domains=task_result.result_data.get("related_domains", []),
+                    context_notes=task_result.result_data.get("context_notes")
+                )
+                
                 # Update document with contextualization data
-                document.contextualize = task_result.result_data
+                document.contextualize = context_data
                 document.contextualize_results = task_result.raw_response
                 # Set to CONTEXTUALIZED (completed)
-                document.processing_stage = ProcessingStage.CONTEXTUALIZED.value
-                logger.info(f"Successfully contextualized document {document.id}")
-            else:
-                # Record error
-                document.processing_stage = ProcessingStage.ERROR.value
-                logger.error(f"Failed to contextualize document {document.id}: {task_result.error_message}")
-            
-            return document
-            
-        except Exception as e:
-            # Handle exceptions
-            document.processing_stage = ProcessingStage.ERROR.value
-            logger.error(f"Error in {self._name} agent: {str(e)}", exc_info=True)
-            return document
-        
-        # Update the current processing stage
-        document.processing_stage = ProcessingStage.CONTEXTUALIZING.value
-        
-        try:
-            # Use the task to process the document
-            logger.info(f"Calling task.process for document {document.id}")
-            task_result = await self.task.process(document)
-            
-            if task_result.success:
-                # Update document with contextualization data
-                document.contextualize = task_result.result_data
-                document.contextualize_results = task_result.raw_response
                 document.processing_stage = ProcessingStage.CONTEXTUALIZED.value
                 logger.info(f"Successfully contextualized document {document.id}")
             else:
