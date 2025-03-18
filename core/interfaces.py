@@ -12,13 +12,15 @@ class ILLM(ABC):
         """Initialize the LLM with configuration."""
         pass
     
+    # core/interfaces.py (update the ILLM interface)
     @abstractmethod
     async def generate(self, 
                 prompt: str, 
                 system_prompt: Optional[str] = None,
                 temperature: Optional[float] = None,
                 max_tokens: Optional[int] = None,
-                stop_sequences: Optional[List[str]] = None) -> str:
+                stop_sequences: Optional[List[str]] = None,
+                format: Optional[Dict[str, Any]] = None) -> str:
         """Generate a response from the LLM."""
         pass
     

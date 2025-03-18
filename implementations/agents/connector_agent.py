@@ -32,15 +32,6 @@ class ConnectorAgent(IAgent):
         return self._description
     
     async def process(self, document: ProcessedDocument) -> ProcessedDocument:
-        """
-        Process a document to create connections.
-        
-        Args:
-            document: The document to process
-            
-        Returns:
-            The processed document with connection information added
-        """
         logger.info(f"Agent {self._name} processing document {document.id}")
         
         # Record the current stage in history
@@ -70,13 +61,35 @@ class ConnectorAgent(IAgent):
                     )
                     document_connections.append(doc_connection)
                 
+                # Handle dependency_chain items - convert from dict to string if needed
+                dependency_chain = task_result.result_data.get("dependency_chain", [])
+                if dependency_chain and isinstance(dependency_chain[0], dict):
+                    # Convert dictionary format to string format
+                    processed_chain = []
+                    for item in dependency_chain:
+                        # Create a string representation from the dict
+                        if isinstance(item, dict):
+                            if 'source' in item and 'destination' in item:
+                                chain_str = f"{item['source']} -> {item['destination']}"
+                            else:
+                                chain_str = str(item)  # Fallback to string representation
+                            processed_chain.append(chain_str)
+                        else:
+                            processed_chain.append(str(item))  # If somehow mixed types
+                    dependency_chain = processed_chain
+                
+                # Handle connection_notes - convert from list to string if needed
+                connection_notes = task_result.result_data.get("connection_notes", "")
+                if isinstance(connection_notes, list):
+                    connection_notes = "\n".join(connection_notes)
+                
                 # Create a proper ConnectionData object from the result data
                 connection_data = ConnectionData(
                     related_concepts=task_result.result_data.get("related_concepts", []),
                     potential_references=task_result.result_data.get("potential_references", []),
                     document_connections=document_connections,
-                    dependency_chain=task_result.result_data.get("dependency_chain", []),
-                    connection_notes=task_result.result_data.get("connection_notes", "")
+                    dependency_chain=dependency_chain,
+                    connection_notes=connection_notes
                 )
                 
                 # Update document with connection data

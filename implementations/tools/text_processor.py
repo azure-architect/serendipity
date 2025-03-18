@@ -36,12 +36,14 @@ class TextProcessor(ITool):
             inputs: Dictionary containing:
                 - 'text': Text to process
                 - 'instruction': Processing instruction
+                - 'format': Optional schema for structured output
                 
         Returns:
             Dictionary containing the processed result
         """
         text = inputs.get('text', '')
         instruction = inputs.get('instruction', 'Process the following text:')
+        format_schema = inputs.get('format')
         
         if not text:
             logger.warning("No text provided for processing")
@@ -55,7 +57,8 @@ class TextProcessor(ITool):
             result = await self.llm.generate(
                 prompt=prompt,
                 temperature=self.config.get('temperature', 0.7),
-                max_tokens=self.config.get('max_tokens', 1000)
+                max_tokens=self.config.get('max_tokens', 1000),
+                format=format_schema
             )
             
             logger.info(f"Received response from LLM (length: {len(result)})")

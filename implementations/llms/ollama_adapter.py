@@ -64,7 +64,8 @@ class OllamaAdapter(ILLM):
                 system_prompt: Optional[str] = None,
                 temperature: Optional[float] = None,
                 max_tokens: Optional[int] = None,
-                stop_sequences: Optional[List[str]] = None) -> str:
+                stop_sequences: Optional[List[str]] = None,
+                format: Optional[Dict[str, Any]] = None) -> str:
         """Generate a response using Ollama client."""
         if not self.client:
             error_msg = "Ollama client not initialized"
@@ -87,24 +88,42 @@ class OllamaAdapter(ILLM):
         logger.debug(f"Generating with model={self.model}, temp={temp}, tokens={tokens}")
         
         try:
-            # Use appropriate generation method based on parameters
-            if system_prompt:
-                logger.debug(f"Using system prompt: {system_prompt[:50]}...")
-                response = self.client.generate(
+            # If format is provided, use chat API with format parameter
+            if format:
+                logger.debug(f"Using structured output format")
+                messages = [{"role": "user", "content": prompt}]
+                if system_prompt:
+                    messages = [{"role": "system", "content": system_prompt}] + messages
+                
+                response = self.client.chat(
                     model=self.model,
-                    prompt=prompt,
-                    system=system_prompt,
+                    messages=messages,
+                    format=format,
                     options=options
                 )
-            else:
-                response = self.client.generate(
-                    model=self.model,
-                    prompt=prompt,
-                    options=options
-                )
+                
+                return response.message.content
             
-            logger.debug(f"Received response from Ollama")
-            return response.response
+            # Otherwise use regular generate API
+            else:
+                # Use appropriate generation method based on parameters
+                if system_prompt:
+                    logger.debug(f"Using system prompt: {system_prompt[:50]}...")
+                    response = self.client.generate(
+                        model=self.model,
+                        prompt=prompt,
+                        system=system_prompt,
+                        options=options
+                    )
+                else:
+                    response = self.client.generate(
+                        model=self.model,
+                        prompt=prompt,
+                        options=options
+                    )
+                
+                logger.debug(f"Received response from Ollama")
+                return response.response
             
         except Exception as e:
             error_msg = f"Error generating response with Ollama: {str(e)}"

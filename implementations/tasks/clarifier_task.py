@@ -4,7 +4,7 @@ from typing import Dict, Any, Optional
 import json
 
 from core.interfaces import ITask, ITool
-from core.schema import ProcessedDocument, TaskResult, TaskType
+from core.schema import ProcessedDocument, TaskResult, TaskType, ClarificationData
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,8 @@ class ClarifierTask(ITask):
             # Use the tool to process the document
             tool_inputs = {
                 'text': document.content,
-                'instruction': prompt
+                'instruction': prompt,
+                'format': ClarificationData.model_json_schema()  # Pass Pydantic schema
             }
             
             # Execute the tool
@@ -67,24 +68,22 @@ class ClarifierTask(ITask):
             llm_response = tool_result.get('result', '')
             
             try:
-                # Try to parse JSON from the response
-                json_str = self._extract_json(llm_response)
-                logger.info(f"Extracted JSON: {json_str[:100]}...")
-                clarification_data = json.loads(json_str)
+                # Validate response with the model
+                clarification_data = ClarificationData.model_validate_json(llm_response)
                 
-                # Create result
+                # Create result with validated data
                 result = TaskResult(
                     task_type=self.task_type,
                     success=True,
                     document_id=str(document.id),
-                    result_data=clarification_data,
+                    result_data=clarification_data.model_dump(),
                     raw_response=llm_response
                 )
                 
                 logger.info(f"Successfully clarified document {document.id}")
                 return result
                 
-            except json.JSONDecodeError as e:
+            except Exception as e:
                 logger.error(f"Error parsing clarification results: {str(e)}")
                 logger.error(f"Raw response: {llm_response}")
                 return TaskResult(
@@ -132,26 +131,11 @@ class ClarifierTask(ITask):
             "concepts in the following document.\n\n"
             f"{context_info}"
             f"Document content:\n{document.content}\n\n"
-            "Please provide the following information in JSON format:\n"
+            "Return a structured JSON object containing:\n"
             "1. complex_terms: A dictionary of complex terms or jargon and their explanations\n"
             "2. ambiguous_concepts: A list of concepts that may be unclear or need further explanation\n"
             "3. implicit_assumptions: A list of assumptions that are implied but not explicitly stated\n"
             "4. clarification_notes: Any additional notes that would help to clarify the document content\n\n"
-            "Format your response as valid JSON with these fields."
+            "The output must match the schema provided."
         )
         return prompt
-    
-    def _extract_json(self, text: str) -> str:
-        """
-        Extract JSON from text that may contain additional content.
-        """
-        # Look for JSON between curly braces
-        start_idx = text.find('{')
-        end_idx = text.rfind('}')
-        
-        if start_idx >= 0 and end_idx > start_idx:
-            return text[start_idx:end_idx+1]
-        
-        # If no JSON structure found, return the original text
-        # (will likely cause a JSON parsing error, which is handled by the caller)
-        return text

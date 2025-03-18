@@ -31,16 +31,8 @@ class CrystallizerAgent(IAgent):
         """Get the agent's description."""
         return self._description
     
+# implementations/agents/crystallizer_agent.py
     async def process(self, document: ProcessedDocument) -> ProcessedDocument:
-        """
-        Process a document to crystallize its content.
-        
-        Args:
-            document: The document to process
-            
-        Returns:
-            The processed document with crystallization information added
-        """
         logger.info(f"Agent {self._name} processing document {document.id}")
         
         # Record the current stage in history
@@ -60,13 +52,30 @@ class CrystallizerAgent(IAgent):
             task_result = await self.task.process(document)
             
             if task_result.success:
+                # Handle executive_summary - convert from list to string if needed
+                executive_summary = task_result.result_data.get("executive_summary", "")
+                if isinstance(executive_summary, list):
+                    executive_summary = " ".join(executive_summary)
+                
+                # Handle potential list-to-string conversions for any string fields
+                key_points = task_result.result_data.get("key_points", [])
+                core_concepts = task_result.result_data.get("core_concepts", [])
+                conclusions = task_result.result_data.get("conclusions", [])
+                questions_raised = task_result.result_data.get("questions_raised", [])
+                
+                # Ensure all list items are strings
+                key_points = [str(item) for item in key_points]
+                core_concepts = [str(item) for item in core_concepts]
+                conclusions = [str(item) for item in conclusions]
+                questions_raised = [str(item) for item in questions_raised]
+                
                 # Create a proper CrystallizationData object from the result data
                 crystallization_data = CrystallizationData(
-                    executive_summary=task_result.result_data.get("executive_summary", ""),
-                    key_points=task_result.result_data.get("key_points", []),
-                    core_concepts=task_result.result_data.get("core_concepts", []),
-                    conclusions=task_result.result_data.get("conclusions", []),
-                    questions_raised=task_result.result_data.get("questions_raised", [])
+                    executive_summary=executive_summary,
+                    key_points=key_points,
+                    core_concepts=core_concepts,
+                    conclusions=conclusions,
+                    questions_raised=questions_raised
                 )
                 
                 # Update document with crystallization data
