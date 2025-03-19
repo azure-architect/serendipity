@@ -4,6 +4,22 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 from pydantic import BaseModel, Field
 
+
+class DocumentType(Enum):
+    """Enum for the different types of documents the system can process."""
+    NOTE = "note"
+    EMAIL = "email"
+    CONVERSATION = "conversation"
+    YOUTUBE_TRANSCRIPT = "youtube_transcript"
+    ARTICLE = "article"
+    RESEARCH_PAPER = "research_paper"
+    CODE = "code"
+    MEETING_NOTES = "meeting_notes"
+    JOURNAL_ENTRY = "journal_entry"
+    BOOK_EXCERPT = "book_excerpt"
+    OTHER = "other"
+
+
 class ProcessingStage(Enum):
     """Enum for the different processing stages of a thought."""
     CREATED = "created"

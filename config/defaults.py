@@ -72,7 +72,9 @@ PIPELINE_DEFAULTS = [
             "tool_config": {
                 "llm_config": {
                     "adapter": "ollama",
-                    "model": "mistral:7b-instruct-fp16"
+                    "model": "mistral:7b-instruct-fp16",
+                    "temperature": 0.3,
+                    "max_tokens": 1000,
                 }
             }
         }

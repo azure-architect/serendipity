@@ -26,15 +26,7 @@ class ContextualizerTask(ITask):
         return self._task_type
     
     async def process(self, document: ProcessedDocument) -> TaskResult:
-        """
-        Process a document to extract contextual information.
-        
-        Args:
-            document: The document to process
-            
-        Returns:
-            TaskResult containing the processing result
-        """
+        """Process document with schema-based document type validation."""
         logger.info(f"Contextualizing document {document.id}")
         
         try:
@@ -66,21 +58,37 @@ class ContextualizerTask(ITask):
             llm_response = tool_result.get('result', '')
             
             try:
-                # Try to parse JSON from the response
+                # Extract JSON from the response
                 json_str = self._extract_json(llm_response)
                 logger.info(f"Extracted JSON: {json_str[:100]}...")
                 context_data = json.loads(json_str)
                 
-                # Create contextualization data
+                # Validate document type against schema
+                from core.schema import DocumentType
+                
+                # Get the document type from response or default to "note"
+                doc_type_str = context_data.get("document_type", "note").lower()
+                
+                # Validate against DocumentType enum
+                try:
+                    # Try to match exactly with enum
+                    doc_type = DocumentType(doc_type_str)
+                except ValueError:
+                    # If not a valid match, default to NOTE
+                    doc_type = DocumentType.NOTE
+                    logger.warning(f"Invalid document type '{doc_type_str}', defaulting to '{doc_type.value}'")
+                    context_data["document_type"] = doc_type.value
+                
+                # Create contextualization data with validated document type
                 contextualization = ContextualizationData(
-                    document_type=context_data.get("document_type"),
+                    document_type=doc_type.value,
                     topics=context_data.get("topics", []),
                     entities=context_data.get("entities", []),
                     related_domains=context_data.get("related_domains", []),
                     context_notes=context_data.get("context_notes")
                 )
                 
-                # Create successful result
+                # Create result
                 result = TaskResult(
                     task_type=self.task_type,
                     success=True,
@@ -89,7 +97,7 @@ class ContextualizerTask(ITask):
                     raw_response=llm_response
                 )
                 
-                logger.info(f"Successfully contextualized document {document.id}")
+                logger.info(f"Successfully contextualized document {document.id} as {doc_type.value}")
                 return result
                 
             except json.JSONDecodeError as e:
@@ -117,12 +125,19 @@ class ContextualizerTask(ITask):
         return self.tool
     
     def build_prompt(self, document: ProcessedDocument) -> str:
-        """Build a prompt for the document."""
+        """Build contextualizer-specific prompt with document types from schema."""
+        from core.schema import DocumentType
+        
+        # Get all valid document types from the enum
+        valid_types = [t.value for t in DocumentType]
+        type_choices = ", ".join(valid_types)
+        
         prompt = (
             "You are a document contextualizer. Your task is to analyze the following document "
             "and extract key contextual information.\n\n"
+            f"Document content:\n{document.content}\n\n"
             "Please provide the following information in JSON format:\n"
-            "1. document_type: The type of document (e.g., article, research paper, email, etc.)\n"
+            f"1. document_type: The type of document (must be one of: {type_choices})\n"
             "2. topics: A list of main topics covered in the document\n"
             "3. entities: A list of key entities mentioned (people, organizations, products, etc.)\n"
             "4. related_domains: A list of knowledge domains related to this document\n"
