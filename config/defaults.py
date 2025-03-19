@@ -72,8 +72,8 @@ PIPELINE_DEFAULTS = [
             "tool_config": {
                 "llm_config": {
                     "adapter": "ollama",
-                    "model": "mistral:7b-instruct-fp16",
-                    "temperature": 0.3,
+                    "model": "gemma3:1b",
+                    "temperature": 0.6,
                     "max_tokens": 1000,
                 }
             }
@@ -87,7 +87,7 @@ PIPELINE_DEFAULTS = [
             "tool_config": {
                 "llm_config": {
                     "adapter": "ollama",
-                    "model": "mistral:7b-instruct-fp16"
+                    "model": "gemma3:12b"
                 }
             }
         }
@@ -100,7 +100,7 @@ PIPELINE_DEFAULTS = [
             "tool_config": {
                 "llm_config": {
                     "adapter": "ollama",
-                    "model": "mistral:7b-instruct-fp16"
+                    "model": "gemma3:12b"
                 }
             }
         }
@@ -113,7 +113,7 @@ PIPELINE_DEFAULTS = [
             "tool_config": {
                 "llm_config": {
                     "adapter": "ollama",
-                    "model": "mistral:7b-instruct-fp16"
+                    "model": "gemma3:12b"
                 }
             }
         }
@@ -126,7 +126,7 @@ PIPELINE_DEFAULTS = [
             "tool_config": {
                 "llm_config": {
                     "adapter": "ollama",
-                    "model": "mistral:7b-instruct-fp16"
+                    "model": "gemma3:12b"
                 }
             }
         }
